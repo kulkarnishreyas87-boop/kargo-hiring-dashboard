@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // pdfjs-dist, which Vercel's file tracer doesn't follow — without this its
   // platform binary silently gets left out of the deployed function.
   outputFileTracingIncludes: {
-    "/api/upload": ["./node_modules/@napi-rs/**/*"],
+    "/api/upload": ["./node_modules/@napi-rs/**/*", "./node_modules/pdfjs-dist/**/*", "./node_modules/pdf-parse/**/*"],
   },
 };
 
