@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   // that doesn't exist, breaking PDF uploads. Leaving it unbundled makes it
   // load straight from node_modules instead, where that relative path is real.
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"],
+  // @napi-rs/canvas is loaded via a try/catch-wrapped require deep inside
+  // pdfjs-dist, which Vercel's file tracer doesn't follow — without this its
+  // platform binary silently gets left out of the deployed function.
+  outputFileTracingIncludes: {
+    "/api/upload": ["./node_modules/@napi-rs/**/*"],
+  },
 };
 
 export default nextConfig;
