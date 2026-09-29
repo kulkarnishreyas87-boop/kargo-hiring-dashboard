@@ -94,6 +94,7 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
   const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string }>>({});
   const [note, setNote] = useState("");
+  const [decisionFeedback, setDecisionFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -114,11 +115,21 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   async function setDecision(decision: string) {
     setBusy("decision");
-    await fetch(`/api/candidates/${id}/decision`, {
+    setDecisionFeedback(null);
+    const res = await fetch(`/api/candidates/${id}/decision`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, note }),
     });
+    const json = await res.json().catch(() => null);
+    if (json?.email?.attempted) {
+      const kindLabel = json.email.kind === "invite" ? "Interview invite" : "Rejection email";
+      setDecisionFeedback(
+        json.email.ok
+          ? { ok: true, message: `${kindLabel} sent.` }
+          : { ok: false, message: `${kindLabel} did not send: ${json.email.error ?? "unknown error"}` }
+      );
+    }
     await load();
     setBusy(null);
   }
@@ -283,6 +294,10 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
           <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
             <h2 className="font-medium">Shortlist decision (human — the last thing you touch)</h2>
+            <p className="text-xs text-slate-500">
+              Advance sends the interview invite immediately. Reject sends the rejection immediately. Both go straight to{" "}
+              {candidate.email ?? "the candidate's email"} the moment you click, no extra confirmation.
+            </p>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -294,35 +309,49 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
               <button
                 onClick={() => setDecision("advance")}
                 disabled={busy === "decision"}
-                className={`rounded-md px-3 py-1.5 text-sm border ${
+                className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
                   data.decision.decision === "advance" ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 hover:bg-slate-100"
                 }`}
               >
-                Advance
+                {busy === "decision" ? "Working…" : "Advance"}
               </button>
               <button
                 onClick={() => setDecision("reject")}
                 disabled={busy === "decision"}
-                className={`rounded-md px-3 py-1.5 text-sm border ${
+                className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
                   data.decision.decision === "reject" ? "bg-rose-600 text-white border-rose-600" : "border-slate-300 hover:bg-slate-100"
                 }`}
               >
-                Reject
+                {busy === "decision" ? "Working…" : "Reject"}
               </button>
               <button
                 onClick={() => setDecision("pending")}
                 disabled={busy === "decision"}
-                className={`rounded-md px-3 py-1.5 text-sm border ${
+                className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
                   data.decision.decision === "pending" ? "bg-slate-700 text-white border-slate-700" : "border-slate-300 hover:bg-slate-100"
                 }`}
               >
                 Back to pending
               </button>
             </div>
+            {decisionFeedback && (
+              <div
+                className={`animate-fade-in-up text-sm rounded-md px-3 py-2 border ${
+                  decisionFeedback.ok
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    : "bg-rose-50 text-rose-700 border-rose-200"
+                }`}
+              >
+                {decisionFeedback.message}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
-            <h2 className="font-medium">Draft emails — nothing sends until you click Send</h2>
+            <h2 className="font-medium">Draft emails</h2>
+            <p className="text-xs text-slate-500 -mt-2">
+              These send automatically when you Advance or Reject above. You can also edit and send one manually here anytime.
+            </p>
             {emails.length === 0 && <p className="text-sm text-slate-400">No drafts yet.</p>}
             {emails.map((e) => (
               <div key={e.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-2">

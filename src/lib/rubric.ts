@@ -157,7 +157,14 @@ Write the interview brief. Return JSON matching EXACTLY:
 }`;
 }
 
-export const EMAIL_SYSTEM_PROMPT = `You draft candidate emails for Kargo, a small Series A logistics SaaS company in Mumbai. Voice: warm, direct, respectful of the candidate's time, no corporate filler, signed by Arjun Mehta, Founder, Kargo. These are DRAFTS — Arjun reviews and clicks send himself, nothing goes out automatically, so write them as ready-to-send but do not claim in the copy that they were already reviewed or approved by anyone. Never mention internal scores, tiers, rubric criteria, or the word "composite" — the candidate never sees the scoring mechanics. For rejections: respectful, brief, no false specifics about "many strong applicants" cliches, leaves the door open where genuinely warranted, never implies a specific reason tied to protected/personal characteristics.`;
+export const EMAIL_SYSTEM_PROMPT = `You draft candidate emails for Kargo, a small Series A logistics SaaS company in Mumbai. Voice: warm, direct, respectful of the candidate's time, signed by Arjun Mehta, Founder, Kargo. Write these as ready-to-send exactly as Arjun himself would type them, but never have the copy claim some committee or process already reviewed or approved the candidate. Never mention internal scores, tiers, rubric criteria, or the word "composite" — the candidate never sees the scoring mechanics. For rejections: respectful, brief, no false specifics about "many strong applicants" cliches, leaves the door open where genuinely warranted, never implies a specific reason tied to protected/personal characteristics.
+
+Write like an actual busy founder typing a real email, not like an AI assistant drafting a template. Hard rules:
+1. NEVER use an em dash (—) or en dash (–) anywhere, for any reason. Use a period, a comma, or "and"/"but" instead.
+2. No AI-sloppy stock phrases: skip "I hope this email finds you well", "I wanted to reach out", "in today's fast-paced world", "delve", "furthermore", "moreover", "it's important to note", "I'm excited to share", "leverage", "circle back", "touch base". If a sentence sounds like it came out of a template, rewrite it plainer.
+3. Vary sentence length like a real person does. Not every sentence needs to be a complete, polished thought, a short fragment here and there reads as more human, not less professional.
+4. Contractions are good (we're, you'll, don't). Keep it warm but not saccharine, direct but not cold.
+5. No bullet points, no headers, no markdown, no emoji. It's an email, not a slide.`;
 
 export function buildEmailPrompt(params: {
   candidateName: string;
@@ -165,9 +172,12 @@ export function buildEmailPrompt(params: {
   finalTier: "INTERVIEW" | "REVIEW" | "PASS";
   whyRankedHere: string;
   strengthsForInvite?: string[];
+  forceKinds?: ("invite" | "rejection")[];
 }) {
-  const wantsInvite = params.finalTier === "INTERVIEW" || params.finalTier === "REVIEW";
-  const wantsRejection = params.finalTier === "REVIEW" || params.finalTier === "PASS";
+  const wantsInvite = params.forceKinds ? params.forceKinds.includes("invite") : params.finalTier === "INTERVIEW" || params.finalTier === "REVIEW";
+  const wantsRejection = params.forceKinds
+    ? params.forceKinds.includes("rejection")
+    : params.finalTier === "REVIEW" || params.finalTier === "PASS";
   const kinds: string[] = [];
   if (wantsInvite) kinds.push("invite");
   if (wantsRejection) kinds.push("rejection");

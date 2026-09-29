@@ -34,6 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="text-slate-600 transition-colors hover:text-slate-900">
                 Dashboard
               </Link>
+              <Link href="/pipeline" className="text-slate-600 transition-colors hover:text-slate-900">
+                Pipeline
+              </Link>
               <Link href="/upload" className="text-slate-600 transition-colors hover:text-slate-900">
                 Upload CVs
               </Link>

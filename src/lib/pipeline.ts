@@ -55,13 +55,14 @@ async function stepBrief(scoring: ScoringResult, guardrail: GuardrailResult, rec
   return generateJson<InterviewBrief>({ system: BRIEF_SYSTEM_PROMPT, prompt, temperature: 0.2 });
 }
 
-/** Step 4: draft candidate-facing emails (never sent automatically). */
+/** Step 4: draft candidate-facing emails. */
 async function stepEmails(params: {
   candidateName: string;
   recommendedRole: string;
   finalTier: "INTERVIEW" | "REVIEW" | "PASS";
   whyRankedHere: string;
   strengthsForInvite?: string[];
+  forceKinds?: ("invite" | "rejection")[];
 }): Promise<EmailDraftBundle> {
   const prompt = buildEmailPrompt(params);
   return generateJson<EmailDraftBundle>({ system: EMAIL_SYSTEM_PROMPT, prompt, temperature: 0.3 });
@@ -227,4 +228,98 @@ export async function runFinishStage(candidateId: string): Promise<void> {
 export async function runPipelineForCandidate(candidateId: string): Promise<void> {
   await runScoreStage(candidateId);
   await runFinishStage(candidateId);
+}
+
+async function loadScoring(candidateId: string): Promise<{ scoring: ScoringResult; guardrail: GuardrailResult }> {
+  const scoreRow = await one<ScoreRow>(`SELECT raw_json, guardrail_json FROM scores WHERE candidate_id = $1`, [candidateId]);
+  if (!scoreRow) throw new Error(`No score found for ${candidateId} — score it before drafting an email.`);
+  return { scoring: JSON.parse(scoreRow.raw_json), guardrail: JSON.parse(scoreRow.guardrail_json) };
+}
+
+export interface EmailRow {
+  id: string;
+  candidate_id: string;
+  kind: string;
+  subject: string;
+  body_text: string;
+  status: string;
+  to_email: string | null;
+  error: string | null;
+}
+
+/**
+ * Returns the most recent draft/sent email of `kind` for a candidate, generating one on
+ * demand if it doesn't exist yet — e.g. Arjun advances a PASS-tier candidate by hand, who
+ * only ever had a rejection drafted, so no invite exists until this generates one.
+ */
+export async function ensureEmailDraft(candidateId: string, kind: "invite" | "rejection"): Promise<EmailRow> {
+  const existing = await one<EmailRow>(
+    `SELECT * FROM emails WHERE candidate_id = $1 AND kind = $2 ORDER BY created_at DESC LIMIT 1`,
+    [candidateId, kind]
+  );
+  if (existing) return existing;
+
+  const candidate = await getCandidate(candidateId);
+  const { scoring, guardrail } = await loadScoring(candidateId);
+  const strengthsSource = scoring.recommended_role === "PM" ? scoring.role_pm.criteria : scoring.role_spm.criteria;
+  const strengths = Object.values(strengthsSource)
+    .filter((c) => c.score >= 3)
+    .map((c) => c.evidence)
+    .slice(0, 3);
+
+  const bundle = await stepEmails({
+    candidateName: candidate.name,
+    recommendedRole: scoring.recommended_role,
+    finalTier: guardrail.final_tier,
+    whyRankedHere: scoring.why_ranked_here,
+    strengthsForInvite: strengths,
+    forceKinds: [kind],
+  });
+  const email = bundle.emails.find((e) => e.kind === kind) ?? bundle.emails[0];
+  const id = randomUUID();
+  await exec(
+    `INSERT INTO emails (id, candidate_id, kind, subject, body_text, status, to_email, created_at)
+     VALUES ($1, $2, $3, $4, $5, 'drafted', $6, now())`,
+    [id, candidateId, email.kind, email.subject, email.body, candidate.email]
+  );
+  await logAudit(candidateId, "email_drafted_on_demand", { kind });
+  const row = await one<EmailRow>(`SELECT * FROM emails WHERE id = $1`, [id]);
+  if (!row) throw new Error("Failed to read back the email draft just inserted.");
+  return row;
+}
+
+/** Re-drafts invite/rejection emails with the current prompt, without re-scoring or re-briefing.
+ * Leaves already-SENT emails untouched — only replaces ones still sitting at 'drafted'. */
+export async function regenerateDraftedEmails(candidateId: string): Promise<void> {
+  const candidate = await getCandidate(candidateId);
+  const { scoring, guardrail } = await loadScoring(candidateId);
+  const strengthsSource = scoring.recommended_role === "PM" ? scoring.role_pm.criteria : scoring.role_spm.criteria;
+  const strengths = Object.values(strengthsSource)
+    .filter((c) => c.score >= 3)
+    .map((c) => c.evidence)
+    .slice(0, 3);
+
+  const emailBundle = await stepEmails({
+    candidateName: candidate.name,
+    recommendedRole: scoring.recommended_role,
+    finalTier: guardrail.final_tier,
+    whyRankedHere: scoring.why_ranked_here,
+    strengthsForInvite: strengths,
+  });
+
+  const alreadySentKinds = (await one<{ kinds: string[] }>(
+    `SELECT COALESCE(array_agg(kind), '{}') as kinds FROM emails WHERE candidate_id = $1 AND status = 'sent'`,
+    [candidateId]
+  ))?.kinds ?? [];
+
+  await exec(`DELETE FROM emails WHERE candidate_id = $1 AND status = 'drafted'`, [candidateId]);
+  for (const email of emailBundle.emails) {
+    if (alreadySentKinds.includes(email.kind)) continue; // don't draft a duplicate of one already sent
+    await exec(
+      `INSERT INTO emails (id, candidate_id, kind, subject, body_text, status, to_email, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'drafted', $6, now())`,
+      [randomUUID(), candidateId, email.kind, email.subject, email.body, candidate.email]
+    );
+  }
+  await logAudit(candidateId, "emails_redrafted", { kinds: emailBundle.emails.map((e) => e.kind) });
 }

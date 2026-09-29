@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { one, exec, logAudit } from "@/lib/db";
+import { ensureEmailDraft } from "@/lib/pipeline";
+import { sendDraftedEmail } from "@/lib/sendEmail";
+
+export const maxDuration = 30;
 
 const VALID = new Set(["pending", "advance", "reject"]);
 
@@ -24,5 +28,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   await logAudit(id, "human_decision", { decision, note });
 
-  return NextResponse.json({ ok: true });
+  // Advancing or rejecting a candidate sends the matching drafted email right away — no
+  // separate confirm step. This was an explicit, informed choice: the app's default is to
+  // require a manual click on the email itself before anything sends, but this project's
+  // owner asked for one-click decisions after being told that removes that safety net.
+  let emailResult: { attempted: boolean; ok?: boolean; error?: string; kind?: "invite" | "rejection" } = { attempted: false };
+  if (decision === "advance" || decision === "reject") {
+    const kind = decision === "advance" ? "invite" : "rejection";
+    try {
+      const email = await ensureEmailDraft(id, kind);
+      const sendOutcome = await sendDraftedEmail(email.id);
+      emailResult = { attempted: true, ok: sendOutcome.ok, error: sendOutcome.error, kind };
+    } catch (e) {
+      emailResult = { attempted: true, ok: false, error: (e as Error).message, kind };
+    }
+  }
+
+  return NextResponse.json({ ok: true, email: emailResult });
 }

@@ -10,7 +10,8 @@
     "extract": "node scripts/extract-resumes.mjs",
     "ingest": "tsx scripts/ingest.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "pipeline": "tsx scripts/run-pipeline.ts"
+    "pipeline": "tsx scripts/run-pipeline.ts",
+    "redraft-emails": "tsx scripts/redraft-emails.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
