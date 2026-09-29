@@ -2,7 +2,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -12,12 +12,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/*
+  This dashboard is deliberately single-theme (light) — it's read against real
+  candidate data, not a marketing page, so it never follows the OS/browser
+  dark-mode preference. That media query previously lived here and swapped
+  --foreground to a light grey; because Tailwind v4's utility classes live in
+  a lower-priority CSS layer, that unlayered override beat classes like
+  text-slate-900 on inherited text (e.g. inside <textarea>/<input>), which is
+  why draft email text was unreadable for anyone with dark mode on.
+*/
 
 body {
   background: var(--background);

@@ -99,15 +99,15 @@ export default function DashboardPage() {
           placeholder="Search name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="border border-slate-300 rounded-md px-3 py-1.5 w-48"
+          className="border border-slate-300 rounded-md px-3 py-1.5 w-48 text-slate-900"
         />
-        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5">
+        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5 text-slate-900">
           <option value="all">All tiers</option>
           <option value="INTERVIEW">Interview</option>
           <option value="REVIEW">Review</option>
           <option value="PASS">Pass</option>
         </select>
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5">
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5 text-slate-900">
           <option value="all">Both roles</option>
           <option value="PM">Recommended: PM</option>
           <option value="SPM">Recommended: SPM</option>

@@ -100,7 +100,7 @@ Return JSON matching EXACTLY this shape (fill in every field, use the applied_ro
   "reroute_suggested": false,
   "experience_band_pm": "in|below|above",
   "experience_band_spm": "in|below|above",
-  "why_ranked_here": "2-3 sentences in plain English, referencing specific evidence, no fluff",
+  "why_ranked_here": "ONE sentence, max ~25 words. State only the single strongest reason this composite landed where it did, tied directly to a PM/SPM job-description requirement (not a career-history recap). No fluff, no background narrative.",
   "probes": ["string", "..."]
 }`;
 }
@@ -131,7 +131,12 @@ Apply the guardrail checks and return JSON matching EXACTLY:
 }`;
 }
 
-export const BRIEF_SYSTEM_PROMPT = `You write a one-page interview brief for Arjun Mehta, founder of Kargo, who has 45 minutes between things and needs to walk into an interview ready — not read a CV cold. Base everything strictly on the scored evidence you're given; never introduce claims not present in it. Be direct, specific, plain English. No filler, no generic PM-interview-question-bank language — every probe question must reference something specific from this candidate's evidence.`;
+export const BRIEF_SYSTEM_PROMPT = `You write a SHORT, decision-focused interview brief for Arjun Mehta, founder of Kargo, who has 45 minutes between things and needs to walk into an interview ready — not read a CV cold, and not read a second CV either. This is a scan, not a report.
+Rules:
+1. Every point must be something that actually affects the hire/no-hire decision or the interview itself. Cut anything that's merely descriptive career history — if it doesn't map to a PM/SPM job-description requirement or a pattern criterion, leave it out.
+2. Be ruthless about length: short fragments over full sentences where possible, no throat-clearing, no restating the candidate's title or years of experience unless that number IS the point.
+3. Base everything strictly on the scored evidence you're given; never introduce claims not present in it.
+4. No filler, no generic PM-interview-question-bank language — every probe question must reference something specific from this candidate's evidence.`;
 
 export function buildBriefPrompt(params: { scoring: object; guardrail: object; recommendedRole: string }) {
   return `SCORED CANDIDATE:
@@ -144,11 +149,11 @@ RECOMMENDED ROLE FOR THIS BRIEF: ${params.recommendedRole}
 
 Write the interview brief. Return JSON matching EXACTLY:
 {
-  "summary": "2-4 sentences: who this person is and why they're being interviewed, grounded in evidence",
-  "strengths": ["string", "..."],
-  "risks_and_gaps": ["string", "..."],
-  "probe_questions": ["string", "... 4-6 total, each tied to specific evidence or a gap"],
-  "suggested_focus_areas": ["string", "2-3 areas to spend most of the interview time on"]
+  "summary": "ONE sentence, max ~30 words: the single decision-relevant reason to interview (or not), tied to a specific JD requirement — not a bio.",
+  "strengths": ["string", "... 2-3 MAX, each one short line, only ones that map directly to a PM/SPM job-description requirement"],
+  "risks_and_gaps": ["string", "... 2-3 MAX, each one short line, only ones that would change the hiring decision or need probing"],
+  "probe_questions": ["string", "... 3-4 total, each tied to specific evidence or a gap"],
+  "suggested_focus_areas": ["string", "2 areas max to spend most of the interview time on"]
 }`;
 }
 

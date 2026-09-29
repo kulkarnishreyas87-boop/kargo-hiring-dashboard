@@ -229,7 +229,7 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Why ranked here</div>
-            <p className="text-sm text-slate-700">{raw.why_ranked_here}</p>
+            <p className="text-base font-medium text-slate-900">{raw.why_ranked_here}</p>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -268,7 +268,7 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
           {brief && (
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-medium mb-2">Interview brief</h2>
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm text-slate-700">{brief.content_md}</div>
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm text-slate-900">{brief.content_md}</div>
             </div>
           )}
 
@@ -278,7 +278,7 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional note for your own record…"
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
               rows={2}
             />
             <div className="flex gap-2">
@@ -337,14 +337,14 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                   value={drafts[e.id]?.subject ?? ""}
                   onChange={(ev) => setDrafts((d) => ({ ...d, [e.id]: { ...d[e.id], subject: ev.target.value } }))}
                   disabled={e.status === "sent"}
-                  className="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium disabled:bg-slate-50"
+                  className="w-full border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium text-slate-900 disabled:bg-slate-50 disabled:text-slate-700"
                 />
                 <textarea
                   value={drafts[e.id]?.body ?? ""}
                   onChange={(ev) => setDrafts((d) => ({ ...d, [e.id]: { ...d[e.id], body: ev.target.value } }))}
                   disabled={e.status === "sent"}
                   rows={7}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm disabled:bg-slate-50"
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 disabled:bg-slate-50 disabled:text-slate-700"
                 />
                 {e.error && <p className="text-xs text-rose-600">Last error: {e.error}</p>}
                 <div className="flex items-center gap-2 text-xs text-slate-400">

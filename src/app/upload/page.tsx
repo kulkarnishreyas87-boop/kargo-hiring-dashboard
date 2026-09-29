@@ -37,7 +37,7 @@ export default function UploadPage() {
       <div className="rounded-lg border border-slate-200 bg-white p-5 space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Applied role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5 text-sm">
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="border border-slate-300 rounded-md px-2 py-1.5 text-sm text-slate-900">
             <option value="UNSPECIFIED">Not specified — score against both</option>
             <option value="PM">Product Manager</option>
             <option value="SPM">Senior Product Manager</option>
