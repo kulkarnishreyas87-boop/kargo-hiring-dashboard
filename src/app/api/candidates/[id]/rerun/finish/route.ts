@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { runPipelineForCandidate } from "@/lib/pipeline";
+import { runFinishStage } from "@/lib/pipeline";
 
-// The 4-step Gemini pipeline (score, guardrail, brief, email draft) can run past
-// the platform's 10s default — this is the Hobby-plan ceiling for route duration.
-export const maxDuration = 60;
+export const maxDuration = 45;
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    await runPipelineForCandidate(id);
+    await runFinishStage(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

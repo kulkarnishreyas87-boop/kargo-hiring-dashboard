@@ -150,10 +150,19 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   async function rerun() {
     setBusy("rerun");
-    const res = await fetch(`/api/candidates/${id}/rerun`, { method: "POST" });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      alert("Pipeline failed: " + (j.error ?? res.statusText));
+    // Split into two requests (score+guardrail, then brief+emails) so neither one
+    // gets close to the serverless function time limit.
+    const scoreRes = await fetch(`/api/candidates/${id}/rerun/score`, { method: "POST" });
+    if (!scoreRes.ok) {
+      const j = await scoreRes.json().catch(() => ({}));
+      alert("Scoring failed: " + (j.error ?? scoreRes.statusText));
+      setBusy(null);
+      return;
+    }
+    const finishRes = await fetch(`/api/candidates/${id}/rerun/finish`, { method: "POST" });
+    if (!finishRes.ok) {
+      const j = await finishRes.json().catch(() => ({}));
+      alert("Brief/email generation failed: " + (j.error ?? finishRes.statusText));
     }
     await load();
     setBusy(null);

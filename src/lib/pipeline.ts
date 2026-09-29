@@ -71,7 +71,32 @@ function recommendedComposite(scoring: ScoringResult) {
   return scoring.recommended_role === "PM" ? scoring.role_pm.composite : scoring.role_spm.composite;
 }
 
-export async function runPipelineForCandidate(candidateId: string): Promise<void> {
+function renderBriefMd(brief: InterviewBrief): string {
+  return [
+    `### Summary`,
+    brief.summary,
+    ``,
+    `### Strengths`,
+    ...brief.strengths.map((s) => `- ${s}`),
+    ``,
+    `### Risks & gaps to probe`,
+    ...brief.risks_and_gaps.map((s) => `- ${s}`),
+    ``,
+    `### Probe questions`,
+    ...brief.probe_questions.map((s) => `- ${s}`),
+    ``,
+    `### Suggested focus areas`,
+    ...brief.suggested_focus_areas.map((s) => `- ${s}`),
+  ].join("\n");
+}
+
+/**
+ * Stage A: score + guardrail only (steps 1-2). Split out from the brief/email stage so
+ * each stays comfortably inside a single serverless function's execution-time budget —
+ * the full 4-step run can run past 40s, which is uncomfortably close to Vercel's Hobby
+ * ceiling for one HTTP request.
+ */
+export async function runScoreStage(candidateId: string): Promise<{ scoring: ScoringResult; guardrail: GuardrailResult }> {
   const candidate = await getCandidate(candidateId);
   try {
     await exec(`UPDATE candidates SET pipeline_status = 'scoring', pipeline_error = NULL WHERE id = $1`, [candidateId]);
@@ -79,11 +104,6 @@ export async function runPipelineForCandidate(candidateId: string): Promise<void
     const scoring = await stepScore(candidate);
     const guardrail = await stepGuardrail(scoring);
     const bestComposite = recommendedComposite(scoring);
-    const strengthsSource = scoring.recommended_role === "PM" ? scoring.role_pm.criteria : scoring.role_spm.criteria;
-    const strengths = Object.values(strengthsSource)
-      .filter((c) => c.score >= 3)
-      .map((c) => c.evidence)
-      .slice(0, 3);
 
     await named(
       `INSERT INTO scores (
@@ -131,7 +151,36 @@ export async function runPipelineForCandidate(candidateId: string): Promise<void
     await exec(`UPDATE candidates SET pipeline_status = 'scored' WHERE id = $1`, [candidateId]);
     await logAudit(candidateId, "scored", { tier: guardrail.final_tier, potential_flag: guardrail.potential_flag });
 
-    // Brief: only worth Arjun's time for INTERVIEW/REVIEW tiers.
+    return { scoring, guardrail };
+  } catch (err) {
+    const message = (err as Error).message;
+    await exec(`UPDATE candidates SET pipeline_status = 'error', pipeline_error = $1 WHERE id = $2`, [message, candidateId]);
+    await logAudit(candidateId, "error", { message });
+    throw err;
+  }
+}
+
+interface ScoreRow {
+  raw_json: string;
+  guardrail_json: string;
+}
+
+/** Stage B: interview brief + email drafts (steps 3-4). Requires runScoreStage to have run first. */
+export async function runFinishStage(candidateId: string): Promise<void> {
+  const candidate = await getCandidate(candidateId);
+  const scoreRow = await one<ScoreRow>(`SELECT raw_json, guardrail_json FROM scores WHERE candidate_id = $1`, [candidateId]);
+  if (!scoreRow) throw new Error(`No score found for ${candidateId} — run the score stage first.`);
+
+  const scoring: ScoringResult = JSON.parse(scoreRow.raw_json);
+  const guardrail: GuardrailResult = JSON.parse(scoreRow.guardrail_json);
+
+  try {
+    const strengthsSource = scoring.recommended_role === "PM" ? scoring.role_pm.criteria : scoring.role_spm.criteria;
+    const strengths = Object.values(strengthsSource)
+      .filter((c) => c.score >= 3)
+      .map((c) => c.evidence)
+      .slice(0, 3);
+
     if (guardrail.final_tier === "INTERVIEW" || guardrail.final_tier === "REVIEW") {
       const brief = await stepBrief(scoring, guardrail, scoring.recommended_role);
       const contentMd = renderBriefMd(brief);
@@ -174,21 +223,8 @@ export async function runPipelineForCandidate(candidateId: string): Promise<void
   }
 }
 
-function renderBriefMd(brief: InterviewBrief): string {
-  return [
-    `### Summary`,
-    brief.summary,
-    ``,
-    `### Strengths`,
-    ...brief.strengths.map((s) => `- ${s}`),
-    ``,
-    `### Risks & gaps to probe`,
-    ...brief.risks_and_gaps.map((s) => `- ${s}`),
-    ``,
-    `### Probe questions`,
-    ...brief.probe_questions.map((s) => `- ${s}`),
-    ``,
-    `### Suggested focus areas`,
-    ...brief.suggested_focus_areas.map((s) => `- ${s}`),
-  ].join("\n");
+/** Full run (both stages) — used by the CLI bulk-scoring script and the single-candidate "re-run" button. */
+export async function runPipelineForCandidate(candidateId: string): Promise<void> {
+  await runScoreStage(candidateId);
+  await runFinishStage(candidateId);
 }

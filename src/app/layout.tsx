@@ -31,10 +31,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               Kargo <span className="text-slate-400 font-normal">/ Hiring</span>
             </Link>
             <nav className="flex gap-5 text-sm">
-              <Link href="/" className="text-slate-600 hover:text-slate-900">
+              <Link href="/" className="text-slate-600 transition-colors hover:text-slate-900">
                 Dashboard
               </Link>
-              <Link href="/upload" className="text-slate-600 hover:text-slate-900">
+              <Link href="/upload" className="text-slate-600 transition-colors hover:text-slate-900">
                 Upload CVs
               </Link>
             </nav>
