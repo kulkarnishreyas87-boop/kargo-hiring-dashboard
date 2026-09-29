@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { one, exec, named, logAudit } from "./db";
 import { generateJson } from "./gemini";
+import { sendDraftedEmail } from "./sendEmail";
 import {
   SCORING_SYSTEM_PROMPT,
   buildScoringPrompt,
@@ -166,6 +167,24 @@ interface ScoreRow {
   guardrail_json: string;
 }
 
+/**
+ * Sets decision to 'reject' and sends the rejection email, but only when the candidate is
+ * still 'pending' — never overwrites a human decision, including one that overrode a PASS
+ * score by advancing them anyway.
+ */
+export async function autoRejectPassTier(candidateId: string, rejectionEmailId: string): Promise<void> {
+  await exec(
+    `UPDATE decisions SET decision = 'reject', decided_at = now()
+     WHERE candidate_id = $1 AND decision = 'pending'`,
+    [candidateId]
+  );
+  const current = await one<{ decision: string }>(`SELECT decision FROM decisions WHERE candidate_id = $1`, [candidateId]);
+  if (current?.decision !== "reject") return; // a human had already made a call — leave it alone
+
+  const outcome = await sendDraftedEmail(rejectionEmailId);
+  await logAudit(candidateId, "auto_rejected_pass_tier", { emailId: rejectionEmailId, ok: outcome.ok, error: outcome.error });
+}
+
 /** Stage B: interview brief + email drafts (steps 3-4). Requires runScoreStage to have run first. */
 export async function runFinishStage(candidateId: string): Promise<void> {
   const candidate = await getCandidate(candidateId);
@@ -201,11 +220,14 @@ export async function runFinishStage(candidateId: string): Promise<void> {
     });
 
     await exec(`DELETE FROM emails WHERE candidate_id = $1 AND status = 'drafted'`, [candidateId]);
+    let rejectionEmailId: string | null = null;
     for (const email of emailBundle.emails) {
+      const emailId = randomUUID();
+      if (email.kind === "rejection") rejectionEmailId = emailId;
       await exec(
         `INSERT INTO emails (id, candidate_id, kind, subject, body_text, status, to_email, created_at)
          VALUES ($1, $2, $3, $4, $5, 'drafted', $6, now())`,
-        [randomUUID(), candidateId, email.kind, email.subject, email.body, candidate.email]
+        [emailId, candidateId, email.kind, email.subject, email.body, candidate.email]
       );
     }
 
@@ -216,6 +238,14 @@ export async function runFinishStage(candidateId: string): Promise<void> {
       [candidateId]
     );
     await logAudit(candidateId, "drafted", { emails: emailBundle.emails.map((e) => e.kind) });
+
+    // PASS tier means the system itself decided this candidate isn't a fit against the hire
+    // pattern — send the rejection right away, no human click. This only fires when nobody
+    // has made a decision on this candidate yet, so it can never overwrite an Advance/Reject
+    // Arjun already made by hand (e.g. overriding a PASS score).
+    if (guardrail.final_tier === "PASS" && rejectionEmailId) {
+      await autoRejectPassTier(candidateId, rejectionEmailId);
+    }
   } catch (err) {
     const message = (err as Error).message;
     await exec(`UPDATE candidates SET pipeline_status = 'error', pipeline_error = $1 WHERE id = $2`, [message, candidateId]);

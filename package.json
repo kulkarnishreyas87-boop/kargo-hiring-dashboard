@@ -11,7 +11,8 @@
     "ingest": "tsx scripts/ingest.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "pipeline": "tsx scripts/run-pipeline.ts",
-    "redraft-emails": "tsx scripts/redraft-emails.ts"
+    "redraft-emails": "tsx scripts/redraft-emails.ts",
+    "auto-reject-pass": "tsx scripts/auto-reject-pass.ts"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

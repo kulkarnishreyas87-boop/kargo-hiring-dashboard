@@ -48,11 +48,19 @@ email immediately** — the interview invite on Advance, the rejection on Reject
 confirmation step. If the matching email hasn't been drafted yet (e.g. you advance a PASS-tier candidate
 by hand), one is generated on the spot before sending.
 
-This was a deliberate, explicit choice by the project owner, made after being told what it removes: the
-app's original design required a manual click on the email draft itself before anything went out,
-specifically so a wrong rejection couldn't go out by accident. That manual Send button still exists on
-the candidate page for ad-hoc sends, edits, or resending, but the decision buttons no longer wait for it.
-Re-clicking Advance/Reject on an already-sent candidate is a safe no-op — it won't send a duplicate.
+**PASS-tier candidates are auto-rejected with no human step at all.** The moment scoring lands someone
+below composite 55 (the rubric's own PASS cutoff), `runFinishStage` sets their decision to `reject` and
+sends the rejection immediately — nobody has to click anything. This only fires while the candidate is
+still `pending`; if you've already advanced or rejected someone by hand (e.g. overriding a PASS score),
+re-running their pipeline will never touch that decision. `npm run auto-reject-pass` backfills this for
+candidates scored before the policy existed.
+
+Both of these were deliberate, explicit choices by the project owner, made after being told what they
+remove: the app's original design required a manual click on the email draft itself before anything went
+out, specifically so a wrong rejection couldn't go out by accident, and separately required a human
+Advance/Reject click before any tier's rejection would send at all. That manual Send button still exists
+on the candidate page for ad-hoc sends, edits, or resending. Sending is idempotent throughout — an
+already-sent email is never sent twice, whether triggered by a click or automatically.
 
 ## Setup
 
