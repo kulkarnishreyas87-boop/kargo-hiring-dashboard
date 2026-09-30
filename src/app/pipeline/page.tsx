@@ -67,12 +67,20 @@ export default function PipelinePage() {
 
   return (
     <div className="space-y-6">
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl font-semibold tracking-tight">Hiring pipeline</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Every scored candidate, grouped by where they stand. Moving a card into Advancing or Declined sends that
-          candidate&apos;s email immediately, same as the buttons on their page.
-        </p>
+      <div className="animate-fade-in-up flex items-start gap-4">
+        <div className="float-slow shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="4" width="6" height="16" rx="1.5" stroke="white" strokeWidth="2" />
+            <rect x="14" y="4" width="6" height="10" rx="1.5" stroke="white" strokeWidth="2" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Hiring pipeline</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Every scored candidate, grouped by where they stand. Moving a card into Advancing or Declined sends that
+            candidate&apos;s email immediately, same as the buttons on their page.
+          </p>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">

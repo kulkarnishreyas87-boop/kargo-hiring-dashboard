@@ -98,12 +98,61 @@ body {
   animation: spin-smooth 0.7s linear infinite;
 }
 
+/* ---- Hero illustration motion: gentle idle float + slow spin ---- */
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float-med {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-7px) rotate(1.5deg); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.float-slow { animation: float-slow 4.5s ease-in-out infinite; }
+.float-med { animation: float-med 3.8s ease-in-out infinite; }
+.float-fast { animation: float-fast 3s ease-in-out infinite; }
+.spin-slow { animation: spin-slow 14s linear infinite; }
+
+.hero-glow {
+  background: radial-gradient(600px circle at var(--x, 50%) var(--y, 0%), rgba(99, 102, 241, 0.10), transparent 60%);
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #4f46e5, #6366f1, #f59e0b, #4f46e5);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 6s ease infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-fade-in,
   .animate-pop-in,
   .skeleton-shimmer,
-  .spinner {
+  .spinner,
+  .float-slow,
+  .float-med,
+  .float-fast,
+  .spin-slow,
+  .gradient-text {
     animation: none !important;
   }
 }

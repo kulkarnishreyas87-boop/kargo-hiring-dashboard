@@ -67,13 +67,18 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl font-semibold tracking-tight">Upload CVs</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          PDF or DOCX. Each candidate is scored automatically the moment it&apos;s uploaded — same 4-step pipeline (score,
-          guardrail, interview brief, email drafts) used for the rest of the shortlist. Nothing is ever sent without you
-          clicking send on the candidate page.
-        </p>
+      <div className="animate-fade-in-up flex items-start gap-4">
+        <div className="float-slow shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm">
+          <UploadIcon />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Upload CVs</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            PDF or DOCX. Each candidate is scored automatically the moment it&apos;s uploaded — same 4-step pipeline
+            (score, guardrail, interview brief, email drafts) used for the rest of the shortlist. If it lands as PASS,
+            the rejection sends right away; INTERVIEW or REVIEW candidates wait for your Advance/Reject call.
+          </p>
+        </div>
       </div>
 
       <div className="animate-fade-in-up rounded-lg border border-slate-200 bg-white p-5 space-y-4" style={{ animationDelay: "60ms" }}>
@@ -167,6 +172,20 @@ export default function UploadPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M12 16V6M12 6l-4 4M12 6l4 4M5 18h14"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
