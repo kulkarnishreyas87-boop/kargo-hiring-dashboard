@@ -451,9 +451,11 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                         <button
                           onClick={() => setConfirmSendId(e.id)}
                           disabled={!e.to_email}
-                          className="rounded-md bg-slate-900 text-white px-3 py-1.5 disabled:opacity-40"
+                          className={`rounded-md px-3 py-1.5 text-white transition-colors disabled:opacity-40 ${
+                            e.status === "failed" ? "bg-amber-600 hover:bg-amber-700" : "bg-slate-900 hover:bg-slate-700"
+                          }`}
                         >
-                          Send
+                          {e.status === "failed" ? "Retry send" : "Send"}
                         </button>
                       )}
                     </>
