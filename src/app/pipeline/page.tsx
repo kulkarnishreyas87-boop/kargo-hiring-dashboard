@@ -14,6 +14,8 @@ interface CandidateRow {
   potential_flag: number | null;
   decision: string | null;
   emails_sent: number;
+  invite_sent: boolean;
+  rejection_sent: boolean;
 }
 
 const TIER_STYLES: Record<string, string> = {
@@ -128,10 +130,11 @@ export default function PipelinePage() {
                       <span>{r.recommended_role ?? "—"}</span>
                       <span className="tabular-nums">{r.best_composite != null ? r.best_composite.toFixed(1) : "—"}</span>
                       {r.potential_flag ? <span className="text-violet-600">potential</span> : null}
-                      {r.emails_sent > 0 && <span className="text-emerald-600">✓ emailed</span>}
+                      {r.invite_sent && <span className="text-blue-600">✓ invite sent</span>}
+                      {r.rejection_sent && <span className="text-rose-600">✓ rejection sent</span>}
                     </div>
                     <div className="flex gap-1.5 mt-2">
-                      {col.key !== "advance" && (
+                      {col.key !== "advance" && !r.invite_sent && (
                         <button
                           onClick={() => move(r.id, "advance")}
                           disabled={busyId === r.id}
@@ -140,7 +143,7 @@ export default function PipelinePage() {
                           Advance
                         </button>
                       )}
-                      {col.key !== "reject" && (
+                      {col.key !== "reject" && !r.rejection_sent && (
                         <button
                           onClick={() => move(r.id, "reject")}
                           disabled={busyId === r.id}

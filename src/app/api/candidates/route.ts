@@ -10,7 +10,9 @@ export async function GET() {
         s.recommended_role, s.reroute_suggested, s.final_tier, s.potential_flag, s.potential_reason,
         s.best_composite, s.why_ranked_here,
         d.decision, d.note as decision_note,
-        (SELECT COUNT(*) FROM emails e WHERE e.candidate_id = c.id AND e.status = 'sent') as emails_sent
+        (SELECT COUNT(*) FROM emails e WHERE e.candidate_id = c.id AND e.status = 'sent') as emails_sent,
+        EXISTS(SELECT 1 FROM emails e WHERE e.candidate_id = c.id AND e.status = 'sent' AND e.kind = 'invite') as invite_sent,
+        EXISTS(SELECT 1 FROM emails e WHERE e.candidate_id = c.id AND e.status = 'sent' AND e.kind = 'rejection') as rejection_sent
       FROM candidates c
       LEFT JOIN scores s ON s.candidate_id = c.id
       LEFT JOIN decisions d ON d.candidate_id = c.id

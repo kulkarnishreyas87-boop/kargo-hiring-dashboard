@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Criterion {
   score: number;
@@ -88,6 +89,7 @@ function CriteriaTable({ criteria, labels }: { criteria: Record<string, Criterio
 
 export default function CandidatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
+  const router = useRouter();
   const [data, setData] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -122,16 +124,24 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
       body: JSON.stringify({ decision, note }),
     });
     const json = await res.json().catch(() => null);
+    let sentOk = false;
     if (json?.email?.attempted) {
       const kindLabel = json.email.kind === "invite" ? "Interview invite" : "Rejection email";
+      sentOk = !!json.email.ok;
       setDecisionFeedback(
         json.email.ok
-          ? { ok: true, message: `${kindLabel} sent.` }
+          ? { ok: true, message: `${kindLabel} sent. Taking you back to the shortlist…` }
           : { ok: false, message: `${kindLabel} did not send: ${json.email.error ?? "unknown error"}` }
       );
     }
     await load();
     setBusy(null);
+    // Once the email actually went out, there's nothing left to do on this page —
+    // head back to the dashboard. Stay put on failure so the error is visible and
+    // actionable (e.g. retry from the draft below).
+    if (sentOk) {
+      setTimeout(() => router.push("/"), 1100);
+    }
   }
 
   async function saveDraft(emailId: string) {
@@ -183,6 +193,9 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   const { candidate, score, brief, emails } = data;
   const raw = score?.raw;
+  const sentEmail = emails.find((e) => e.status === "sent");
+  const advanceLocked = sentEmail?.kind === "invite";
+  const rejectLocked = sentEmail?.kind === "rejection";
 
   return (
     <div className="space-y-6 pb-16">
@@ -305,28 +318,41 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
               rows={2}
             />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDecision("advance")}
-                disabled={busy === "decision"}
-                className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
-                  data.decision.decision === "advance" ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                {busy === "decision" ? "Working…" : "Advance"}
-              </button>
-              <button
-                onClick={() => setDecision("reject")}
-                disabled={busy === "decision"}
-                className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
-                  data.decision.decision === "reject" ? "bg-rose-600 text-white border-rose-600" : "border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                {busy === "decision" ? "Working…" : "Reject"}
-              </button>
+            <div className="flex gap-2 flex-wrap">
+              {advanceLocked ? (
+                <span className="rounded-md px-3 py-1.5 text-sm border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1.5">
+                  ✓ Invite sent
+                </span>
+              ) : (
+                <button
+                  onClick={() => setDecision("advance")}
+                  disabled={busy === "decision"}
+                  className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
+                    data.decision.decision === "advance" ? "bg-blue-600 text-white border-blue-600" : "border-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  {busy === "decision" ? "Working…" : "Advance"}
+                </button>
+              )}
+              {rejectLocked ? (
+                <span className="rounded-md px-3 py-1.5 text-sm border bg-rose-50 text-rose-700 border-rose-200 flex items-center gap-1.5">
+                  ✓ Rejection sent
+                </span>
+              ) : (
+                <button
+                  onClick={() => setDecision("reject")}
+                  disabled={busy === "decision"}
+                  className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
+                    data.decision.decision === "reject" ? "bg-rose-600 text-white border-rose-600" : "border-slate-300 hover:bg-slate-100"
+                  }`}
+                >
+                  {busy === "decision" ? "Working…" : "Reject"}
+                </button>
+              )}
               <button
                 onClick={() => setDecision("pending")}
-                disabled={busy === "decision"}
+                disabled={busy === "decision" || data.decision.decision === "pending"}
+                title={sentEmail ? "Resets your tracking only — it can't unsend the email already delivered." : undefined}
                 className={`rounded-md px-3 py-1.5 text-sm border transition-colors disabled:opacity-50 ${
                   data.decision.decision === "pending" ? "bg-slate-700 text-white border-slate-700" : "border-slate-300 hover:bg-slate-100"
                 }`}
@@ -334,6 +360,12 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                 Back to pending
               </button>
             </div>
+            {sentEmail && (
+              <p className="text-xs text-slate-400">
+                An email has already gone out to this candidate, so the decision is locked in. Edit the draft below and
+                use its own Send button if you need to follow up separately.
+              </p>
+            )}
             {decisionFeedback && (
               <div
                 className={`animate-fade-in-up text-sm rounded-md px-3 py-2 border ${
@@ -385,10 +417,16 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                   className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 disabled:bg-slate-50 disabled:text-slate-700"
                 />
                 {e.error && <p className="text-xs text-rose-600">Last error: {e.error}</p>}
+                {sentEmail && e.id !== sentEmail.id && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                    The {sentEmail.kind} already went out to this candidate — sending this {e.kind} too would contradict
+                    it, so it&apos;s locked. Clear the decision above first if you really need to send this instead.
+                  </p>
+                )}
                 <div className="flex items-center gap-2 text-xs text-slate-400">
                   <span>To: {e.to_email ?? "no email on file"}</span>
                   <span className="ml-auto" />
-                  {e.status !== "sent" && (
+                  {e.status !== "sent" && !(sentEmail && e.id !== sentEmail.id) && (
                     <>
                       <button
                         onClick={() => saveDraft(e.id)}
