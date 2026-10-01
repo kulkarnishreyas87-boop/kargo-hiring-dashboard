@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Modal } from "@/components/Modal";
 
 interface CandidateRow {
   id: string;
@@ -34,6 +35,7 @@ export default function PipelinePage() {
   const [rows, setRows] = useState<CandidateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [resultModal, setResultModal] = useState<{ ok: boolean; title: string; message: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -56,19 +58,37 @@ export default function PipelinePage() {
     return groups;
   }, [rows]);
 
-  async function move(candidateId: string, decision: string) {
+  async function move(candidateId: string, candidateName: string, decision: string) {
     setBusyId(candidateId);
-    await fetch(`/api/candidates/${candidateId}/decision`, {
+    const res = await fetch(`/api/candidates/${candidateId}/decision`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision }),
     });
+    const json = await res.json().catch(() => null);
+    if (json?.email?.attempted) {
+      const kindLabel = json.email.kind === "invite" ? "Interview invite" : "Rejection email";
+      setResultModal(
+        json.email.ok
+          ? { ok: true, title: "Email has been sent", message: `${kindLabel} for ${candidateName} was delivered.` }
+          : { ok: false, title: "Email was not sent", message: `${kindLabel} for ${candidateName} failed: ${json.email.error ?? "unknown error"}` }
+      );
+    }
     await load();
     setBusyId(null);
   }
 
   return (
     <div className="space-y-6">
+      <Modal
+        open={!!resultModal}
+        onClose={() => setResultModal(null)}
+        title={resultModal?.title ?? ""}
+        tone={resultModal?.ok ? "success" : "error"}
+        onAction={() => setResultModal(null)}
+      >
+        {resultModal?.message}
+      </Modal>
       <div className="animate-fade-in-up flex items-start gap-4">
         <div className="float-slow shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -136,7 +156,7 @@ export default function PipelinePage() {
                     <div className="flex gap-1.5 mt-2">
                       {col.key !== "advance" && !r.invite_sent && (
                         <button
-                          onClick={() => move(r.id, "advance")}
+                          onClick={() => move(r.id, r.name, "advance")}
                           disabled={busyId === r.id}
                           className="text-[11px] rounded border border-blue-200 text-blue-700 bg-blue-50 px-2 py-1 hover:bg-blue-100 disabled:opacity-40 transition-colors"
                         >
@@ -145,7 +165,7 @@ export default function PipelinePage() {
                       )}
                       {col.key !== "reject" && !r.rejection_sent && (
                         <button
-                          onClick={() => move(r.id, "reject")}
+                          onClick={() => move(r.id, r.name, "reject")}
                           disabled={busyId === r.id}
                           className="text-[11px] rounded border border-rose-200 text-rose-700 bg-rose-50 px-2 py-1 hover:bg-rose-100 disabled:opacity-40 transition-colors"
                         >
@@ -154,7 +174,7 @@ export default function PipelinePage() {
                       )}
                       {col.key !== "pending" && (
                         <button
-                          onClick={() => move(r.id, "pending")}
+                          onClick={() => move(r.id, r.name, "pending")}
                           disabled={busyId === r.id}
                           className="text-[11px] rounded border border-slate-200 text-slate-600 bg-slate-50 px-2 py-1 hover:bg-slate-100 disabled:opacity-40 transition-colors"
                         >

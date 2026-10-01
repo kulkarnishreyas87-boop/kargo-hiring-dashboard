@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Modal } from "@/components/Modal";
 
 interface Criterion {
   score: number;
@@ -96,7 +97,7 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
   const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string }>>({});
   const [note, setNote] = useState("");
-  const [decisionFeedback, setDecisionFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const [resultModal, setResultModal] = useState<{ ok: boolean; title: string; message: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -117,31 +118,22 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   async function setDecision(decision: string) {
     setBusy("decision");
-    setDecisionFeedback(null);
     const res = await fetch(`/api/candidates/${id}/decision`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, note }),
     });
     const json = await res.json().catch(() => null);
-    let sentOk = false;
     if (json?.email?.attempted) {
       const kindLabel = json.email.kind === "invite" ? "Interview invite" : "Rejection email";
-      sentOk = !!json.email.ok;
-      setDecisionFeedback(
+      setResultModal(
         json.email.ok
-          ? { ok: true, message: `${kindLabel} sent. Taking you back to the shortlist…` }
-          : { ok: false, message: `${kindLabel} did not send: ${json.email.error ?? "unknown error"}` }
+          ? { ok: true, title: "Email has been sent", message: `${kindLabel} was delivered to ${data?.candidate.email ?? "the candidate"}.` }
+          : { ok: false, title: "Email was not sent", message: `${kindLabel} failed to send: ${json.email.error ?? "unknown error"}` }
       );
     }
     await load();
     setBusy(null);
-    // Once the email actually went out, there's nothing left to do on this page —
-    // head back to the dashboard. Stay put on failure so the error is visible and
-    // actionable (e.g. retry from the draft below).
-    if (sentOk) {
-      setTimeout(() => router.push("/"), 1100);
-    }
   }
 
   async function saveDraft(emailId: string) {
@@ -160,22 +152,16 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
     setBusy(emailId);
     await saveDraft(emailId);
     const res = await fetch(`/api/emails/${emailId}/send`, { method: "POST" });
-    let sentOk = false;
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert("Send failed: " + (j.error ?? res.statusText));
+      setResultModal({ ok: false, title: "Email was not sent", message: j.error ?? res.statusText ?? "Unknown error" });
     } else {
-      sentOk = true;
-      setDecisionFeedback({ ok: true, message: "Email sent. Taking you back to the shortlist…" });
+      const toEmail = data?.emails.find((e) => e.id === emailId)?.to_email;
+      setResultModal({ ok: true, title: "Email has been sent", message: `Delivered to ${toEmail ?? "the candidate"}.` });
     }
     setConfirmSendId(null);
     await load();
     setBusy(null);
-    // Same rule as Advance/Reject: once an email has actually gone out, there's nothing
-    // left to do here, so head back to the dashboard automatically.
-    if (sentOk) {
-      setTimeout(() => router.push("/"), 1100);
-    }
   }
 
   async function rerun() {
@@ -208,11 +194,20 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="space-y-6 pb-16">
-      {decisionFeedback?.ok && (
-        <div className="animate-fade-in-up fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm px-4 py-2.5 shadow-lg">
-          ✓ {decisionFeedback.message}
-        </div>
-      )}
+      <Modal
+        open={!!resultModal}
+        onClose={() => setResultModal(null)}
+        title={resultModal?.title ?? ""}
+        tone={resultModal?.ok ? "success" : "error"}
+        actionLabel={resultModal?.ok ? "Back to shortlist" : "OK"}
+        onAction={() => {
+          const wasOk = resultModal?.ok;
+          setResultModal(null);
+          if (wasOk) router.push("/");
+        }}
+      >
+        {resultModal?.message}
+      </Modal>
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <Link href="/" className="text-xs text-slate-400 hover:text-slate-700">
@@ -379,11 +374,6 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                 An email has already gone out to this candidate, so the decision is locked in. Edit the draft below and
                 use its own Send button if you need to follow up separately.
               </p>
-            )}
-            {decisionFeedback && !decisionFeedback.ok && (
-              <div className="animate-fade-in-up text-sm rounded-md px-3 py-2 border bg-rose-50 text-rose-700 border-rose-200">
-                {decisionFeedback.message}
-              </div>
             )}
           </div>
 
