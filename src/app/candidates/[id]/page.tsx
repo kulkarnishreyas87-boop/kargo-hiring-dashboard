@@ -160,13 +160,22 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
     setBusy(emailId);
     await saveDraft(emailId);
     const res = await fetch(`/api/emails/${emailId}/send`, { method: "POST" });
+    let sentOk = false;
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       alert("Send failed: " + (j.error ?? res.statusText));
+    } else {
+      sentOk = true;
+      setDecisionFeedback({ ok: true, message: "Email sent. Taking you back to the shortlist…" });
     }
     setConfirmSendId(null);
     await load();
     setBusy(null);
+    // Same rule as Advance/Reject: once an email has actually gone out, there's nothing
+    // left to do here, so head back to the dashboard automatically.
+    if (sentOk) {
+      setTimeout(() => router.push("/"), 1100);
+    }
   }
 
   async function rerun() {
@@ -199,6 +208,11 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="space-y-6 pb-16">
+      {decisionFeedback?.ok && (
+        <div className="animate-fade-in-up fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm px-4 py-2.5 shadow-lg">
+          ✓ {decisionFeedback.message}
+        </div>
+      )}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <Link href="/" className="text-xs text-slate-400 hover:text-slate-700">
@@ -366,14 +380,8 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
                 use its own Send button if you need to follow up separately.
               </p>
             )}
-            {decisionFeedback && (
-              <div
-                className={`animate-fade-in-up text-sm rounded-md px-3 py-2 border ${
-                  decisionFeedback.ok
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                    : "bg-rose-50 text-rose-700 border-rose-200"
-                }`}
-              >
+            {decisionFeedback && !decisionFeedback.ok && (
+              <div className="animate-fade-in-up text-sm rounded-md px-3 py-2 border bg-rose-50 text-rose-700 border-rose-200">
                 {decisionFeedback.message}
               </div>
             )}
