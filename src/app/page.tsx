@@ -1,52 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { HeroIllustration } from "@/components/HeroIllustration";
+import { DonutChart, BarChart } from "@/components/Charts";
 
 interface CandidateRow {
   id: string;
-  name: string;
-  applied_role: string;
-  pipeline_status: string;
-  pipeline_error: string | null;
-  pattern_score: number | null;
-  composite_pm: number | null;
-  tier_pm: string | null;
-  composite_spm: number | null;
-  tier_spm: string | null;
   recommended_role: string | null;
-  reroute_suggested: number | null;
   final_tier: string | null;
-  potential_flag: number | null;
-  potential_reason: string | null;
-  best_composite: number | null;
-  why_ranked_here: string | null;
-  decision: string | null;
-  decision_note: string | null;
-  emails_sent: number;
+  pipeline_status: string;
 }
 
 interface Stats {
   total: number;
   byTier: { final_tier: string; n: string }[];
   potentialFlagged: number;
+  decisions: { decision: string; n: string }[];
+  emailsSent: number;
+  emailsDrafted: number;
 }
-
-const TIER_STYLES: Record<string, string> = {
-  INTERVIEW: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  REVIEW: "bg-amber-100 text-amber-800 border-amber-200",
-  PASS: "bg-slate-100 text-slate-600 border-slate-200",
-};
-
-const DECISION_STYLES: Record<string, string> = {
-  advance: "bg-blue-100 text-blue-800 border-blue-200",
-  reject: "bg-rose-100 text-rose-700 border-rose-200",
-  pending: "bg-slate-50 text-slate-500 border-slate-200",
-};
 
 function tierCount(stats: Stats | null, tier: string): number {
   return Number(stats?.byTier.find((t) => t.final_tier === tier)?.n ?? 0);
+}
+
+function decisionCount(stats: Stats | null, decision: string): number {
+  return Number(stats?.decisions.find((d) => d.decision === decision)?.n ?? 0);
 }
 
 /** Counts up to `value` once, on mount / whenever value first becomes truthy. Purely cosmetic. */
@@ -106,15 +86,15 @@ function StatCard({
   );
 }
 
-function SkeletonRow({ delay }: { delay: number }) {
+function ChartCard({ title, delay, children }: { title: string; delay: number; children: ReactNode }) {
   return (
-    <tr className="border-t border-slate-100 animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
-      {Array.from({ length: 10 }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="skeleton-shimmer h-3.5 rounded" style={{ width: `${40 + ((i * 13) % 50)}%` }} />
-        </td>
-      ))}
-    </tr>
+    <div
+      className="animate-fade-in-up rounded-lg border border-slate-200 bg-white p-5 transition-shadow hover:shadow-md"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <h3 className="text-sm font-medium text-slate-700 mb-4">{title}</h3>
+      {children}
+    </div>
   );
 }
 
@@ -122,10 +102,6 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<CandidateRow[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tierFilter, setTierFilter] = useState<string>("all");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [potentialOnly, setPotentialOnly] = useState(false);
-  const [query, setQuery] = useState("");
 
   async function load() {
     setLoading(true);
@@ -143,17 +119,9 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
-    return rows.filter((r) => {
-      if (tierFilter !== "all" && r.final_tier !== tierFilter) return false;
-      if (roleFilter !== "all" && r.recommended_role !== roleFilter) return false;
-      if (potentialOnly && !r.potential_flag) return false;
-      if (query && !r.name.toLowerCase().includes(query.toLowerCase())) return false;
-      return true;
-    });
-  }, [rows, tierFilter, roleFilter, potentialOnly, query]);
-
   const unscored = rows.filter((r) => r.pipeline_status === "pending" || r.pipeline_status === "error").length;
+  const pmCount = rows.filter((r) => r.recommended_role === "PM").length;
+  const spmCount = rows.filter((r) => r.recommended_role === "SPM").length;
 
   function handleHeroMouseMove(e: MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -177,10 +145,16 @@ export default function DashboardPage() {
               Ranked by best composite across both roles, scored against the hire pattern, not the job spec. The
               system recommends, you decide, and that decision is the last thing you touch.
             </p>
-            <div className="flex gap-2 text-sm mt-5">
+            <div className="flex gap-2 text-sm mt-5 flex-wrap">
+              <Link
+                href="/candidates"
+                className="rounded-md bg-slate-900 text-white px-4 py-2.5 font-medium transition-all hover:bg-slate-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+              >
+                View candidates
+              </Link>
               <Link
                 href="/upload"
-                className="rounded-md bg-slate-900 text-white px-4 py-2.5 font-medium transition-all hover:bg-slate-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2.5 font-medium text-slate-700 transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-slate-400 active:translate-y-0"
               >
                 Upload CVs
               </Link>
@@ -201,7 +175,7 @@ export default function DashboardPage() {
           <StatCard label="Total scored" value={stats.total} accent="text-slate-900" dot="bg-indigo-500" delay={0} />
           <StatCard label="Interview" value={tierCount(stats, "INTERVIEW")} accent="text-emerald-700" dot="bg-emerald-500" delay={60} />
           <StatCard label="Review" value={tierCount(stats, "REVIEW")} accent="text-amber-700" dot="bg-amber-500" delay={120} />
-          <StatCard label="Pass" value={tierCount(stats, "PASS")} accent="text-slate-500" dot="bg-slate-400" delay={180} />
+          <StatCard label="Pass" value={tierCount(stats, "PASS")} accent="text-rose-700" dot="bg-rose-400" delay={180} />
           <StatCard label="High potential" value={stats.potentialFlagged} accent="text-violet-700" dot="bg-violet-500" delay={240} />
         </div>
       )}
@@ -213,125 +187,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 items-center text-sm animate-fade-in-up" style={{ animationDelay: "80ms" }}>
-        <input
-          placeholder="Search name…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="border border-slate-300 rounded-md px-3 py-1.5 w-48 text-slate-900 transition-shadow focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
-        <select
-          value={tierFilter}
-          onChange={(e) => setTierFilter(e.target.value)}
-          className="border border-slate-300 rounded-md px-2 py-1.5 text-slate-900 transition-shadow focus:outline-none focus:ring-2 focus:ring-slate-300"
-        >
-          <option value="all">All tiers</option>
-          <option value="INTERVIEW">Interview</option>
-          <option value="REVIEW">Review</option>
-          <option value="PASS">Pass</option>
-        </select>
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="border border-slate-300 rounded-md px-2 py-1.5 text-slate-900 transition-shadow focus:outline-none focus:ring-2 focus:ring-slate-300"
-        >
-          <option value="all">Both roles</option>
-          <option value="PM">Recommended: PM</option>
-          <option value="SPM">Recommended: SPM</option>
-        </select>
-        <label className="flex items-center gap-1.5 text-slate-600">
-          <input type="checkbox" checked={potentialOnly} onChange={(e) => setPotentialOnly(e.target.checked)} />
-          High-potential flag only
-        </label>
-        <span className="text-slate-400 ml-auto tabular-nums">
-          {filtered.length} of {rows.length}
-        </span>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white animate-fade-in-up" style={{ animationDelay: "120ms" }}>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
-            <tr>
-              <th className="px-4 py-2 font-medium">#</th>
-              <th className="px-4 py-2 font-medium">Candidate</th>
-              <th className="px-4 py-2 font-medium">Applied</th>
-              <th className="px-4 py-2 font-medium">Recommended</th>
-              <th className="px-4 py-2 font-medium">Tier</th>
-              <th className="px-4 py-2 font-medium">Composite</th>
-              <th className="px-4 py-2 font-medium">Pattern</th>
-              <th className="px-4 py-2 font-medium">Flags</th>
-              <th className="px-4 py-2 font-medium">Decision</th>
-              <th className="px-4 py-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} delay={i * 40} />)}
-            {!loading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
-                  No candidates match these filters.
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              filtered.map((r, i) => (
-                <tr
-                  key={r.id}
-                  className="border-t border-slate-100 transition-colors hover:bg-slate-50 animate-fade-in-up"
-                  style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
-                >
-                  <td className="px-4 py-2 text-slate-400">{i + 1}</td>
-                  <td className="px-4 py-2">
-                    <Link href={`/candidates/${r.id}`} className="font-medium text-slate-900 hover:underline">
-                      {r.name}
-                    </Link>
-                    {r.pipeline_status !== "drafted" && r.pipeline_status !== "scored" && (
-                      <span className="ml-2 text-xs text-slate-400">({r.pipeline_status})</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">{r.applied_role}</td>
-                  <td className="px-4 py-2">
-                    {r.recommended_role ?? "—"}
-                    {r.reroute_suggested ? <span className="ml-1 text-xs text-indigo-600">reroute?</span> : null}
-                  </td>
-                  <td className="px-4 py-2">
-                    {r.final_tier ? (
-                      <span
-                        className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium transition-transform hover:scale-105 ${TIER_STYLES[r.final_tier]}`}
-                      >
-                        {r.final_tier}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-2 font-mono">{r.best_composite != null ? r.best_composite.toFixed(1) : "—"}</td>
-                  <td className="px-4 py-2 font-mono text-slate-500">{r.pattern_score != null ? r.pattern_score.toFixed(1) : "—"}</td>
-                  <td className="px-4 py-2">
-                    {r.potential_flag ? (
-                      <span
-                        title={r.potential_reason ?? ""}
-                        className="animate-pop-in inline-block rounded-full bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 text-xs font-medium"
-                      >
-                        potential
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${DECISION_STYLES[r.decision ?? "pending"]}`}>
-                      {r.decision ?? "pending"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <Link href={`/candidates/${r.id}`} className="text-slate-500 transition-colors hover:text-slate-900 text-xs">
-                      View →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      {!loading && stats && stats.total > 0 && (
+        <div className="grid lg:grid-cols-3 gap-4">
+          <ChartCard title="Tier distribution" delay={0}>
+            <DonutChart
+              data={[
+                { label: "Interview", value: tierCount(stats, "INTERVIEW"), color: "#10b981" },
+                { label: "Review", value: tierCount(stats, "REVIEW"), color: "#f59e0b" },
+                { label: "Pass", value: tierCount(stats, "PASS"), color: "#fb7185" },
+              ]}
+            />
+          </ChartCard>
+          <ChartCard title="Shortlist decisions" delay={80}>
+            <BarChart
+              data={[
+                { label: "Pending", value: decisionCount(stats, "pending"), color: "#94a3b8" },
+                { label: "Advanced", value: decisionCount(stats, "advance"), color: "#3b82f6" },
+                { label: "Declined", value: decisionCount(stats, "reject"), color: "#fb7185" },
+              ]}
+            />
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+              <span>Emails sent</span>
+              <span className="font-semibold text-slate-700 tabular-nums">
+                {stats.emailsSent} / {stats.emailsSent + stats.emailsDrafted}
+              </span>
+            </div>
+          </ChartCard>
+          <ChartCard title="Recommended role split" delay={160}>
+            <BarChart
+              data={[
+                { label: "Product Manager", value: pmCount, color: "#6366f1" },
+                { label: "Senior PM", value: spmCount, color: "#a855f7" },
+              ]}
+            />
+          </ChartCard>
+        </div>
+      )}
     </div>
   );
 }

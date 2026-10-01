@@ -18,6 +18,16 @@ const LINKS = [
     ),
   },
   {
+    href: "/candidates",
+    label: "Candidates",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M4.5 20c1-4 4-6 7.5-6s6.5 2 7.5 6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/pipeline",
     label: "Pipeline",
     icon: (
@@ -52,7 +62,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
       <nav className="flex-1 px-3 space-y-1">
         {LINKS.map((link) => {
-          const active = pathname === link.href;
+          const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
           return (
             <Link
               key={link.href}

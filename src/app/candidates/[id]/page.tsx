@@ -4,6 +4,7 @@ import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/Modal";
+import { scoreBoxClass } from "@/lib/scoreTone";
 
 interface Criterion {
   score: number;
@@ -253,18 +254,18 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
           )}
 
           <div className="grid sm:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Recommended role</div>
-              <div className="text-lg font-semibold mt-1">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+              <div className="text-xs uppercase tracking-wide text-indigo-500">Recommended role</div>
+              <div className="text-lg font-semibold mt-1 text-indigo-900">
                 {raw.recommended_role} {raw.reroute_suggested && <span className="text-xs text-indigo-600 font-normal">(reroute from {raw.applied_role})</span>}
               </div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Final tier</div>
+            <div className={`rounded-lg border p-4 transition-colors ${scoreBoxClass(raw.pattern.pattern_score)}`}>
+              <div className="text-xs uppercase tracking-wide opacity-70">Final tier</div>
               <div className="text-lg font-semibold mt-1">{score.guardrail.final_tier}</div>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <div className="text-xs text-slate-400 uppercase tracking-wide">Pattern score</div>
+            <div className={`rounded-lg border p-4 transition-colors ${scoreBoxClass(raw.pattern.pattern_score)}`}>
+              <div className="text-xs uppercase tracking-wide opacity-70">Pattern score</div>
               <div className="text-lg font-semibold mt-1">{raw.pattern.pattern_score.toFixed(1)} / 100</div>
             </div>
           </div>
@@ -282,15 +283,21 @@ export default function CandidatePage({ params }: { params: Promise<{ id: string
           <div className="grid md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-medium mb-1">Product Manager fit</h2>
-              <p className="text-xs text-slate-400 mb-2">
-                Composite {raw.role_pm.composite.toFixed(1)} · Tier {raw.role_pm.tier} · Experience band: {raw.experience_band_pm}
+              <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                <span className={`rounded border px-1.5 py-0.5 font-mono font-semibold ${scoreBoxClass(raw.role_pm.composite)}`}>
+                  {raw.role_pm.composite.toFixed(1)}
+                </span>
+                Tier {raw.role_pm.tier} · Experience band: {raw.experience_band_pm}
               </p>
               <CriteriaTable criteria={raw.role_pm.criteria} labels={ROLE_LABELS} />
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-medium mb-1">Senior PM fit</h2>
-              <p className="text-xs text-slate-400 mb-2">
-                Composite {raw.role_spm.composite.toFixed(1)} · Tier {raw.role_spm.tier} · Experience band: {raw.experience_band_spm}
+              <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                <span className={`rounded border px-1.5 py-0.5 font-mono font-semibold ${scoreBoxClass(raw.role_spm.composite)}`}>
+                  {raw.role_spm.composite.toFixed(1)}
+                </span>
+                Tier {raw.role_spm.tier} · Experience band: {raw.experience_band_spm}
               </p>
               <CriteriaTable criteria={raw.role_spm.criteria} labels={ROLE_LABELS} />
             </div>

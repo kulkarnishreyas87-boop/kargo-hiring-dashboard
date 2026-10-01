@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Modal } from "@/components/Modal";
+import { scoreBoxClass } from "@/lib/scoreTone";
 
 interface CandidateRow {
   id: string;
@@ -148,7 +149,9 @@ export default function PipelinePage() {
                     </div>
                     <div className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
                       <span>{r.recommended_role ?? "—"}</span>
-                      <span className="tabular-nums">{r.best_composite != null ? r.best_composite.toFixed(1) : "—"}</span>
+                      <span className={`tabular-nums rounded border px-1.5 py-0.5 font-mono text-[11px] font-semibold ${scoreBoxClass(r.best_composite)}`}>
+                        {r.best_composite != null ? r.best_composite.toFixed(1) : "—"}
+                      </span>
                       {r.potential_flag ? <span className="text-violet-600">potential</span> : null}
                       {r.invite_sent && <span className="text-blue-600">✓ invite sent</span>}
                       {r.rejection_sent && <span className="text-rose-600">✓ rejection sent</span>}
